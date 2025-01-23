@@ -1,0 +1,74 @@
+local function executeAimLockScript()
+    local player = game.Players.LocalPlayer
+    local camera = workspace.CurrentCamera
+    local aimLocked = false
+    local target = nil
+    local mainPrediction = 0.1220000000 -- Set initial prediction
+
+    -- Function to find target based on camera direction
+    local function findTargetInCameraView()
+        local closestPlayer = nil
+        local closestDot = -math.huge
+        
+        for _, p in pairs(game.Players:GetPlayers()) do
+            if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                local direction = (p.Character.HumanoidRootPart.Position - camera.CFrame.Position).unit
+                local dot = camera.CFrame.LookVector:Dot(direction)
+
+                if dot > 0 and dot > closestDot then
+                    closestDot = dot
+                    closestPlayer = p
+                end
+            end
+        end
+        
+        return closestPlayer
+    end
+
+    -- Toggle lock on target
+    local function toggleLock()
+        if aimLocked then
+            aimLocked = false
+            target = nil -- Clear target when unlocking
+        else
+            target = findTargetInCameraView()
+            if target then
+                aimLocked = true
+            end
+        end
+    end
+
+    -- Update camera every frame
+    game:GetService("RunService").RenderStepped:Connect(function()
+        if aimLocked and target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+            local targetPos = target.Character.HumanoidRootPart.Position
+            local predictedPos = targetPos + (target.Character.HumanoidRootPart.Velocity * mainPrediction)
+            camera.CFrame = CFrame.new(camera.CFrame.Position, predictedPos)
+        end
+    end)
+
+    -- Listen for "C" key press to toggle aim lock
+    game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end -- Ignore if input was processed by the game
+        
+        if input.KeyCode == Enum.KeyCode.C then
+            toggleLock()
+        end
+    end)
+
+    -- Chat command for teleportation
+    game.Players.LocalPlayer.Chatted:Connect(function(message)
+        if message == "!tp" then
+            player.Character:MoveTo(Vector3.new(52.8817024230957, 29.300928115844727, -870.6152954101562))
+        end
+    end)
+
+    -- Unlock when the player dies
+    player.CharacterAdded:Connect(function(character)
+        aimLocked = false -- Unlock aim lock
+        target = nil -- Clear target
+    end)
+end
+
+-- Call the function to execute the script
+executeAimLockScript()
